@@ -23,7 +23,7 @@ class RegistrationModel
         $user_password_repeat = Request::post('user_password_repeat');
 
         // stop registration flow if registrationInputValidation() returns false (= anything breaks the input check rules)
-        $validation_result = self::registrationInputValidation(Request::post('captcha'), $user_name, $user_password_new, $user_password_repeat, $user_email, $user_email_repeat);
+        $validation_result = self::registrationInputValidation($user_name, $user_password_new, $user_password_repeat, $user_email, $user_email_repeat);
         if (!$validation_result) {
             return false;
         }
@@ -66,8 +66,10 @@ class RegistrationModel
             Session::add('feedback_negative', Text::get('FEEDBACK_UNKNOWN_ERROR'));
             return false;
         }
+        Session::add('feedback_positive', Text::get('FEEDBACK_ACCOUNT_SUCCESSFULLY_CREATED'));
+        return true;
 
-        // send verification email
+        /*// send verification email
         if (self::sendVerificationEmail($user_id, $user_email, $user_activation_hash)) {
             Session::add('feedback_positive', Text::get('FEEDBACK_ACCOUNT_SUCCESSFULLY_CREATED'));
             return true;
@@ -76,7 +78,7 @@ class RegistrationModel
         // if verification email sending failed: instantly delete the user
         self::rollbackRegistrationByUserId($user_id);
         Session::add('feedback_negative', Text::get('FEEDBACK_VERIFICATION_MAIL_SENDING_FAILED'));
-        return false;
+        return false;*/
     }
 
     /**
@@ -91,16 +93,16 @@ class RegistrationModel
      *
      * @return bool
      */
-    public static function registrationInputValidation($captcha, $user_name, $user_password_new, $user_password_repeat, $user_email, $user_email_repeat)
+    public static function registrationInputValidation($user_name, $user_password_new, $user_password_repeat, $user_email, $user_email_repeat)
     {
         $return = true;
-
+        /* Alter Captcha Code
         // perform all necessary checks
         if (!CaptchaModel::checkCaptcha($captcha)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_CAPTCHA_WRONG'));
             $return = false;
         }
-
+        */
         // if username, email and password are all correctly validated, but make sure they all run on first sumbit
         if (self::validateUserName($user_name) AND self::validateUserEmail($user_email, $user_email_repeat) AND self::validateUserPassword($user_password_new, $user_password_repeat) AND $return) {
             return true;
@@ -205,16 +207,18 @@ class RegistrationModel
         $database = DatabaseFactory::getFactory()->getConnection();
 
         // write new users data into database
-        $sql = "INSERT INTO users (user_name, user_password_hash, user_email, user_creation_timestamp, user_activation_hash, user_provider_type)
-                    VALUES (:user_name, :user_password_hash, :user_email, :user_creation_timestamp, :user_activation_hash, :user_provider_type)";
+        $sql = "INSERT INTO users (user_name, user_password_hash, user_email, user_creation_timestamp, user_activation_hash, user_provider_type, user_active)
+                    VALUES (:user_name, :user_password_hash, :user_email, :user_creation_timestamp, :user_activation_hash, :user_provider_type, :user_active)";
         $query = $database->prepare($sql);
         $query->execute(array(':user_name' => $user_name,
                               ':user_password_hash' => $user_password_hash,
                               ':user_email' => $user_email,
                               ':user_creation_timestamp' => $user_creation_timestamp,
                               ':user_activation_hash' => $user_activation_hash,
-                              ':user_provider_type' => 'DEFAULT'));
+                              ':user_provider_type' => 'DEFAULT',
+                              ':user_active' => 1));
         $count =  $query->rowCount();
+
         if ($count == 1) {
             return true;
         }
@@ -246,7 +250,7 @@ class RegistrationModel
      *
      * @return boolean gives back true if mail has been sent, gives back false if no mail could been sent
      */
-    public static function sendVerificationEmail($user_id, $user_email, $user_activation_hash)
+    /*public static function sendVerificationEmail($user_id, $user_email, $user_activation_hash)
     {
         $body = Config::get('EMAIL_VERIFICATION_CONTENT') . Config::get('URL') . Config::get('EMAIL_VERIFICATION_URL')
                 . '/' . urlencode($user_id) . '/' . urlencode($user_activation_hash);
@@ -263,7 +267,7 @@ class RegistrationModel
             Session::add('feedback_negative', Text::get('FEEDBACK_VERIFICATION_MAIL_SENDING_ERROR') . $mail->getError() );
             return false;
         }
-    }
+    }*/
 
     /**
      * checks the email/verification code combination and set the user's activation status to true in the database

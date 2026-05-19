@@ -16,15 +16,16 @@
             <table class="overview-table">
                 <thead>
                 <tr>
-                    <td>Id</td>
-                    <td>Avatar</td>
-                    <td>Username</td>
-                    <td>User's email</td>
-                    <td>Activated ?</td>
-                    <td>Link to user's profile</td>
-                    <td>suspension Time in days</td>
-                    <td>Soft delete</td>
-                    <td>Submit</td>
+                    <th>Id</th>
+                    <th>Avatar</th>
+                    <th>Username</th>
+                    <th>User's email</th>
+                    <th>Activated ?</th>
+                    <th>Link to user's profile</th>
+                    <th>suspension Time in days</th>
+                    <th>User Role</th>
+                    <th>Soft delete</th>
+                    <th>Submit</th>
                 </tr>
                 </thead>
                 <?php foreach ($this->users as $user) { ?>
@@ -43,6 +44,12 @@
                         </td>
                         <form action="<?= config::get("URL"); ?>admin/actionAccountSettings" method="post">
                             <td><input type="number" name="suspension" /></td>
+                            <td><select name="roles" id="roles">
+                                    <option value="1" <?= ((int) $user->user_account_type === 1 ? 'selected' : ''); ?>>Gast</option>
+                                    <option value="2" <?= ((int) $user->user_account_type === 2 ? 'selected' : ''); ?>>User</option>
+                                    <option value="7" <?= ((int) $user->user_account_type === 7 ? 'selected' : ''); ?>>Admin</option>
+                                </select>
+                            </td>
                             <td><input type="checkbox" name="softDelete" <?php if ($user->user_deleted) { ?> checked <?php } ?> /></td>
                             <td>
                                 <input type="hidden" name="user_id" value="<?= $user->user_id; ?>" />

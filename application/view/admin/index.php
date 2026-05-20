@@ -13,7 +13,9 @@
             or suspend a user.
         </div>
         <div>
-            <table class="overview-table">
+            <link rel="stylesheet" href="https://cdn.datatables.net/2.3.8/css/dataTables.dataTables.min.css">
+
+            <table id="adminTable">
                 <thead>
                 <tr>
                     <th>Id</th>
@@ -21,14 +23,16 @@
                     <th>Username</th>
                     <th>User's email</th>
                     <th>Activated ?</th>
-                    <th>Link to user's profile</th>
-                    <th>suspension Time in days</th>
-                    <th>User Role</th>
-                    <th>Soft delete</th>
+                    <th>Profile</th>
+                    <th>Suspend</th>
+                    <th>Role</th>
+                    <th>Delete</th>
                     <th>Submit</th>
                 </tr>
                 </thead>
+                <tbody>
                 <?php foreach ($this->users as $user) { ?>
+                    <?php $formId = 'account-settings-' . $user->user_id; ?>
                     <tr class="<?= ($user->user_active == 0 ? 'inactive' : 'active'); ?>">
                         <td><?= $user->user_id; ?></td>
                         <td class="avatar">
@@ -42,23 +46,53 @@
                         <td>
                             <a href="<?= Config::get('URL') . 'profile/showProfile/' . $user->user_id; ?>">Profile</a>
                         </td>
-                        <form action="<?= config::get("URL"); ?>admin/actionAccountSettings" method="post">
-                            <td><input type="number" name="suspension" /></td>
-                            <td><select name="roles" id="roles">
-                                    <option value="1" <?= ((int) $user->user_account_type === 1 ? 'selected' : ''); ?>>Gast</option>
-                                    <option value="2" <?= ((int) $user->user_account_type === 2 ? 'selected' : ''); ?>>User</option>
-                                    <option value="7" <?= ((int) $user->user_account_type === 7 ? 'selected' : ''); ?>>Admin</option>
+                        <td><input type="number" name="suspension" form="<?= $formId; ?>" /></td>
+                        <td><select name="roles" form="<?= $formId; ?>">
+                                    <?php foreach ($this->roles as $role) { ?>
+                                        <option value="<?= $role->user_role_id; ?>" <?= ((int) $user->user_account_type === (int) $role->user_role_id ? 'selected' : ''); ?>><?= $role->user_role_name; ?></option>
+                                    <?php } ?>
                                 </select>
-                            </td>
-                            <td><input type="checkbox" name="softDelete" <?php if ($user->user_deleted) { ?> checked <?php } ?> /></td>
-                            <td>
+                        </td>
+                        <td><input type="checkbox" name="softDelete" form="<?= $formId; ?>" <?php if ($user->user_deleted) { ?> checked <?php } ?> /></td>
+                        <td>
+                            <form id="<?= $formId; ?>" action="<?= config::get("URL"); ?>admin/actionAccountSettings" method="post">
                                 <input type="hidden" name="user_id" value="<?= $user->user_id; ?>" />
-                                <input type="submit" />
-                            </td>
-                        </form>
+                                <input type="submit" value="Senden" />
+                            </form>
+                        </td>
                     </tr>
                 <?php } ?>
+                </tbody>
             </table>
+
+            <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+            <script src="https://cdn.datatables.net/2.3.8/js/dataTables.min.js"></script>
+            <script>
+                $(function () {
+                    new DataTable('#adminTable', {
+                        scrollX: true,
+                        pageLength: 5,
+                        lengthMenu: [5, 10, 25],
+                        order: [[0, 'asc']],
+                        columnDefs: [
+                            { orderable: false, searchable: false, targets: [1, 5, 6, 7, 8, 9] }
+                        ],
+                        language: {
+                            search: 'Suche:',
+                            lengthMenu: '_MENU_ Einträge pro Seite',
+                            info: '_START_ bis _END_ von _TOTAL_ Einträgen',
+                            zeroRecords: 'Keine passenden Einträge gefunden',
+                            emptyTable: 'Keine Daten vorhanden',
+                            paginate: {
+                                first: 'Erste',
+                                last: 'Letzte',
+                                next: 'Weiter',
+                                previous: 'Zurück'
+                            }
+                        }
+                    });
+                });
+            </script>
         </div>
     </div>
 </div>

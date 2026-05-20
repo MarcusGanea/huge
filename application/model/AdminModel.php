@@ -21,7 +21,8 @@ class AdminModel
             Session::add('feedback_negative', Text::get('FEEDBACK_ACCOUNT_CANT_DELETE_SUSPEND_OWN'));
             return false;
         }
-        if (!in_array((int) $role, array(1, 2, 7), true)) {
+
+        if (!UserRoleModel::roleExists((int) $role)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_ACCOUNT_TYPE_CHANGE_FAILED'));
             return false;
         }
@@ -34,7 +35,7 @@ class AdminModel
 
         // FYI "on" is what a checkbox delivers by default when submitted. Didn't know that for a long time :)
         if ($softDelete == "on") {
-            $delete == 1;
+            $delete = 1;
         } else {
             $delete = 0;
         }
@@ -44,7 +45,7 @@ class AdminModel
 
         // if suspension or deletion should happen, then also kick user out of the application instantly by resetting
         // the user's session :)
-        if ($suspensionTime != null OR $delete = 1) {
+        if ($suspensionTime != null || $delete == 1) {
             self::resetUserSession($userId);
         }
     }

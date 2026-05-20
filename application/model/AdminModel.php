@@ -12,13 +12,17 @@ class AdminModel
      * @param $softDelete
      * @param $userId
      */
-    public static function setAccountSuspensionAndDeletionStatus($suspensionInDays, $softDelete, $userId)
+    public static function setAccountSuspensionAndDeletionStatus($suspensionInDays, $softDelete, $userId, $role)
     {
 
         // Prevent to suspend or delete own account.
         // If admin suspend or delete own account will not be able to do any action.
         if ($userId == Session::get('user_id')) {
             Session::add('feedback_negative', Text::get('FEEDBACK_ACCOUNT_CANT_DELETE_SUSPEND_OWN'));
+            return false;
+        }
+        if (!in_array((int) $role, array(1, 2, 7), true)) {
+            Session::add('feedback_negative', Text::get('FEEDBACK_ACCOUNT_TYPE_CHANGE_FAILED'));
             return false;
         }
 
@@ -30,13 +34,13 @@ class AdminModel
 
         // FYI "on" is what a checkbox delivers by default when submitted. Didn't know that for a long time :)
         if ($softDelete == "on") {
-            $delete = 1;
+            $delete == 1;
         } else {
             $delete = 0;
         }
 
         // write the above info to the database
-        self::writeDeleteAndSuspensionInfoToDatabase($userId, $suspensionTime, $delete);
+        self::writeDeleteAndSuspensionInfoToDatabase($userId, $suspensionTime, $delete, (int) $role);
 
         // if suspension or deletion should happen, then also kick user out of the application instantly by resetting
         // the user's session :)
@@ -53,14 +57,15 @@ class AdminModel
      * @param $delete
      * @return bool
      */
-    private static function writeDeleteAndSuspensionInfoToDatabase($userId, $suspensionTime, $delete)
+    private static function writeDeleteAndSuspensionInfoToDatabase($userId, $suspensionTime, $delete, $role)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $query = $database->prepare("UPDATE users SET user_suspension_timestamp = :user_suspension_timestamp, user_deleted = :user_deleted  WHERE user_id = :user_id LIMIT 1");
+        $query = $database->prepare("UPDATE users SET user_suspension_timestamp = :user_suspension_timestamp, user_deleted = :user_deleted, user_account_type = :user_account_type  WHERE user_id = :user_id LIMIT 1");
         $query->execute(array(
                 ':user_suspension_timestamp' => $suspensionTime,
                 ':user_deleted' => $delete,
+                ':user_account_type' => $role,
                 ':user_id' => $userId
         ));
 

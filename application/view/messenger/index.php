@@ -9,6 +9,9 @@
         <div>
             This controller/action/view shows a list of all your chats.
         </div>
+        <button>
+            <a href="<?= Config::get('URL') . 'messenger/new'; ?>">New Chat</a>
+        </button>
         <div>
     <link rel="stylesheet" href="https://cdn.datatables.net/2.3.8/css/dataTables.dataTables.min.css">
 
@@ -47,7 +50,7 @@
                 pageLength: 10,
                 order: [[0, 'asc']],
                 columnDefs: [
-                    { orderable: false, searchable: false, targets: [1, 4] }
+                    { orderable: false, searchable: false, targets: [3] }
                 ],
                 language: {
                     search: 'Suche:',

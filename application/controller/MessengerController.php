@@ -23,4 +23,54 @@ class MessengerController extends Controller
             'chats' => MessengerModel::getMyChats())
         );
     }
+
+
+    public function new()
+    {
+        $this->View->render('messenger/new', array(
+            'users' => MessengerModel::getAvailableUsersForNewChat()
+        ));
+    }
+
+    public function start($partner_id)
+    {
+        MessengerModel::getOrCreateDirectChat(Session::get('user_id'), $partner_id);
+        Redirect::to('messenger/chat/' . $partner_id);
+    }
+
+    public function chat($partner_id)
+    {
+        $chat_id = MessengerModel::getOrCreateDirectChat(Session::get('user_id'), $partner_id);
+
+        MessengerModel::markChatAsRead($chat_id, Session::get('user_id'));
+
+        $this->View->render('messenger/chat', array(
+            'chats' => MessengerModel::getMyChats(),
+            'messages' => MessengerModel::getMessagesByChatId($chat_id, Session::get('user_id')),
+            'active_chat_id' => $chat_id,
+            'partner' => MessengerModel::getPartnerData($partner_id)
+        ));
+    }
+
+    public function send()
+    {
+        MessengerModel::sendMessageToPartner(
+            Session::get('user_id'),
+            Request::post('partner_id'),
+            Request::post('content', true)
+        );
+
+        Redirect::to('messenger/chat/' . Request::post('partner_id'));
+    }
+
+    public function sendTest($partner_id)
+    {
+        MessengerModel::sendMessageToPartner(
+            Session::get('user_id'),
+            $partner_id,
+            Request::get('text')
+        );
+
+        Redirect::to('messenger/chat/' . $partner_id);
+    }
 }

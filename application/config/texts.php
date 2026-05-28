@@ -6,6 +6,9 @@
  * Could be extended to i18n etc.
  */
 return array(
+    "FEEDBACK_MESSAGE_SENT" => "Message sent!",
+    "FEEDBACK_MESSAGE_EMPTY" => "Message cannot be empty",
+    "FEEDBACK_CHAT_PARTNER_INVALID" => "Invalid Chat Partner!",
     "FEEDBACK_UNKNOWN_ERROR" => "Unknown error occurred!",
     "FEEDBACK_DELETED" => "Your account has been deleted.",
     "FEEDBACK_ACCOUNT_SUSPENDED" => "Account Suspended for ",

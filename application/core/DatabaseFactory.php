@@ -62,3 +62,42 @@ class DatabaseFactory
         return $this->database;
     }
 }
+
+class DatabaseFactoryMySQLi
+{
+    private static $factory;
+    private $database;
+
+    public static function getFactory()
+    {
+        if (!self::$factory) {
+            self::$factory = new self();
+        }
+
+        return self::$factory;
+    }
+
+    public function getConnection()
+    {
+        if (!$this->database) {
+            mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+            try {
+                $this->database = new mysqli(
+                    Config::get('DB_HOST'),
+                    Config::get('DB_USER'),
+                    Config::get('DB_PASS'),
+                    Config::get('DB_NAME'),
+                    (int) Config::get('DB_PORT')
+                );
+
+                $this->database->set_charset(Config::get('DB_CHARSET'));
+            } catch (Exception $e) {
+                error_log($e->getMessage());
+                exit('Error connecting to database');
+            }
+        }
+
+        return $this->database;
+    }
+}

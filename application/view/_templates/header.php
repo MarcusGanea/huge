@@ -8,6 +8,10 @@
     <link rel="icon" href="data:;base64,=">
     <!-- CSS -->
     <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/style.css" />
+    <?php 
+        if (View::checkForActiveController($filename, "messenger")) { ?>
+            <link rel="stylesheet" href="<?php echo Config::get('URL'); ?>css/chat.css" />
+    <?php } ?>
 </head>
 <body>
     <!-- wrapper, to center website -->

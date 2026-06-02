@@ -30,6 +30,7 @@ class MessengerModel{
                     ON cp_other.user_id = u.user_id
                 WHERE cp_me.user_id = :current_user_id
                   AND cp_other.user_id != :current_user_id
+                  AND c.chat_type = 'DM'
                 ORDER BY c.chat_id DESC";
 
         $query = $database->prepare($sql);
@@ -132,7 +133,7 @@ class MessengerModel{
 
         $chat_name = 'DM_' . min($user_id, $partner_id) . '_' . max($user_id, $partner_id);
 
-        $sql = "INSERT INTO chats (chat_name) VALUES (:chat_name)";
+        $sql = "INSERT INTO chats (chat_name, chat_type) VALUES (:chat_name, 'DM')";
         $query = $database->prepare($sql);
         $query->execute(array(':chat_name' => $chat_name));
 

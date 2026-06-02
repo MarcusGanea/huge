@@ -10,7 +10,10 @@
             This controller/action/view shows a list of all your chats.
         </div>
         <button>
-            <a href="<?= Config::get('URL') . 'messenger/new'; ?>">New Chat</a>
+            <a href="<?= Config::get('URL') . 'messenger/new'; ?>">Neuer Direkt-Chat</a>
+        </button>
+        <button>
+            <a href="<?= Config::get('URL') . 'group/index'; ?>">Gruppen</a>
         </button>
         <div>
     <link rel="stylesheet" href="https://cdn.datatables.net/2.3.8/css/dataTables.dataTables.min.css">

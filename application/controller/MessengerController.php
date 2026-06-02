@@ -46,6 +46,7 @@ class MessengerController extends Controller
 
         $this->View->render('messenger/chat', array(
             'chats' => MessengerModel::getMyChats(),
+            'my_groups' => GroupModel::getMyGroupChats(),
             'messages' => MessengerModel::getMessagesByChatId($chat_id, Session::get('user_id')),
             'active_chat_id' => $chat_id,
             'partner' => MessengerModel::getPartnerData($partner_id)

@@ -1,21 +1,24 @@
-﻿/* ===================================================
+/* ===================================================
    CHAT / MESSENGER LAYOUT
    =================================================== */
 
-/* Full-page chat shell */
+/* Chat shell: flex container filling available space */
 .chat-shell {
     display: flex;
-    height: calc(100vh - 80px);
+    height: 600px;
+    min-height: 500px;
     border: 1px solid #ddd;
     border-radius: 6px;
     overflow: hidden;
     background: #fff;
+    margin-top: 10px;
 }
 
 /* ---- SIDEBAR ---- */
 .chat-sidebar {
-    width: 240px;
-    min-width: 180px;
+    width: 220px;
+    min-width: 160px;
+    flex-shrink: 0;
     border-right: 1px solid #ddd;
     display: flex;
     flex-direction: column;
@@ -76,18 +79,13 @@
     color: #4a90e2;
 }
 
-.chat-sidebar hr {
-    border: none;
-    border-top: 1px solid #ddd;
-    margin: 8px 0;
-}
-
 /* ---- MAIN CONTENT ---- */
 .chat-main {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    min-width: 0;
 }
 
 /* Header bar inside chat */
@@ -107,11 +105,17 @@
     color: #333;
 }
 
-.chat-header .chat-header-actions a {
+.chat-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.chat-header-actions a {
     font-size: 12px;
     color: #4a90e2;
     text-decoration: none;
-    margin-left: 12px;
 }
 
 /* Message area */
@@ -121,16 +125,17 @@
     padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
 }
 
 /* ---- BUBBLES ---- */
 .bubble {
-    border-radius: 1em;
-    padding: 0.35em 0.85em;
-    max-width: 55%;
+    border-radius: 1.1em;
+    padding: 0.4em 0.9em;
+    max-width: 60%;
     word-break: break-word;
-    line-height: 1.4;
+    line-height: 1.45;
+    font-size: 14px;
 }
 
 /* Foreign messages — left, blue */
@@ -147,15 +152,15 @@
     color: #333;
 }
 
-.bubble.sender.first  { border-bottom-left-radius: .15em; }
-.bubble.sender.last   { border-top-left-radius: .15em; }
-.bubble.sender.middle { border-top-left-radius: .15em; border-bottom-left-radius: .15em; }
+.bubble.sender.first  { border-bottom-left-radius: .2em; }
+.bubble.sender.last   { border-top-left-radius: .2em; }
+.bubble.sender.middle { border-top-left-radius: .2em; border-bottom-left-radius: .2em; }
 
-.bubble.recipient.first  { border-bottom-right-radius: .15em; }
-.bubble.recipient.last   { border-top-right-radius: .15em; }
-.bubble.recipient.middle { border-top-right-radius: .15em; border-bottom-right-radius: .15em; }
+.bubble.recipient.first  { border-bottom-right-radius: .2em; }
+.bubble.recipient.last   { border-top-right-radius: .2em; }
+.bubble.recipient.middle { border-top-right-radius: .2em; border-bottom-right-radius: .2em; }
 
-/* Sender name in group chat */
+/* Sender name shown above first bubble in group chat */
 .bubble-sender-name {
     font-size: .72em;
     font-weight: 700;
@@ -215,7 +220,7 @@
     line-height: 16px;
 }
 
-/* ---- ADD MEMBER MODAL / DROPDOWN ---- */
+/* ---- ADD MEMBER FORM in header ---- */
 .add-member-form {
     display: inline-flex;
     gap: 6px;

@@ -1,54 +1,240 @@
-﻿html { font-family: 'PT Sans', Georgia, serif; }
+﻿/* ===================================================
+   CHAT / MESSENGER LAYOUT
+   =================================================== */
 
-.discussion {
-max-width: 600px;
-margin: 0 auto;
-
-display: flex;
-flex-flow: column wrap;
+/* Full-page chat shell */
+.chat-shell {
+    display: flex;
+    height: calc(100vh - 80px);
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
 }
 
-.discussion > .bubble {
-border-radius: 1em;
-padding: 0.25em 0.75em;
-margin: 0.0625em;
-max-width: 50%;
+/* ---- SIDEBAR ---- */
+.chat-sidebar {
+    width: 240px;
+    min-width: 180px;
+    border-right: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    background: #f7f7f7;
+    overflow-y: auto;
 }
 
-.discussion > .bubble.sender {
-align-self: flex-start;
-background-color: cornflowerblue;
-color: #fff;
-}
-.discussion > .bubble.recipient {
-align-self: flex-end;
-background-color: #efefef;
+.chat-sidebar-section {
+    padding: 10px 12px 4px;
 }
 
-.discussion > .bubble.sender.first { border-bottom-left-radius: 0.1em; }
-.discussion > .bubble.sender.last { border-top-left-radius: 0.1em; }
-.discussion > .bubble.sender.middle {
-border-bottom-left-radius: 0.1em;
- border-top-left-radius: 0.1em;
+.chat-sidebar-section h4 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #888;
 }
 
-.discussion > .bubble.recipient.first { border-bottom-right-radius: 0.1em; }
-.discussion > .bubble.recipient.last { border-top-right-radius: 0.1em; }
-.discussion > .bubble.recipient.middle {
-border-bottom-right-radius: 0.1em;
-border-top-right-radius: 0.1em;
+.chat-sidebar-section a.new-btn {
+    display: inline-block;
+    font-size: 12px;
+    color: #4a90e2;
+    text-decoration: none;
+    margin-bottom: 6px;
 }
 
-/* Sender name label above foreign group-chat bubbles */
+.chat-sidebar ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.chat-sidebar ul li a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    font-size: 13px;
+    text-decoration: none;
+    color: #333;
+    border-radius: 4px;
+    transition: background .15s;
+}
+
+.chat-sidebar ul li a:hover {
+    background: #e9e9e9;
+}
+
+.chat-sidebar ul li a.active-chat {
+    background: #4a90e2;
+    color: #fff;
+    font-weight: 600;
+}
+
+.chat-sidebar ul li a.active-chat .message-badge {
+    background: #fff;
+    color: #4a90e2;
+}
+
+.chat-sidebar hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 8px 0;
+}
+
+/* ---- MAIN CONTENT ---- */
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Header bar inside chat */
+.chat-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid #ddd;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.chat-header h2 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.chat-header .chat-header-actions a {
+    font-size: 12px;
+    color: #4a90e2;
+    text-decoration: none;
+    margin-left: 12px;
+}
+
+/* Message area */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* ---- BUBBLES ---- */
+.bubble {
+    border-radius: 1em;
+    padding: 0.35em 0.85em;
+    max-width: 55%;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+/* Foreign messages — left, blue */
+.bubble.sender {
+    align-self: flex-start;
+    background-color: #5b96f7;
+    color: #fff;
+}
+
+/* Own messages — right, grey */
+.bubble.recipient {
+    align-self: flex-end;
+    background-color: #efefef;
+    color: #333;
+}
+
+.bubble.sender.first  { border-bottom-left-radius: .15em; }
+.bubble.sender.last   { border-top-left-radius: .15em; }
+.bubble.sender.middle { border-top-left-radius: .15em; border-bottom-left-radius: .15em; }
+
+.bubble.recipient.first  { border-bottom-right-radius: .15em; }
+.bubble.recipient.last   { border-top-right-radius: .15em; }
+.bubble.recipient.middle { border-top-right-radius: .15em; border-bottom-right-radius: .15em; }
+
+/* Sender name in group chat */
 .bubble-sender-name {
-    font-size: 0.75em;
-    font-weight: bold;
-    margin-bottom: 0.15em;
-    opacity: 0.75;
+    font-size: .72em;
+    font-weight: 700;
+    margin-bottom: .15em;
+    opacity: .85;
 }
 
-/* Highlight active chat in sidebar */
-a.active-chat {
-    font-weight: bold;
-    text-decoration: underline;
+/* ---- SEND FORM ---- */
+.chat-form {
+    padding: 10px 16px;
+    border-top: 1px solid #ddd;
+    background: #fafafa;
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.chat-form input[type="text"] {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    font-size: 13px;
+    outline: none;
+}
+
+.chat-form input[type="text"]:focus {
+    border-color: #4a90e2;
+}
+
+.chat-form input[type="submit"] {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 20px;
+    background: #4a90e2;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.chat-form input[type="submit"]:hover {
+    background: #2f7ad1;
+}
+
+/* ---- BADGE ---- */
+.message-badge {
+    display: inline-block;
+    background: #e74c3c;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    text-align: center;
+    padding: 1px 5px;
+    line-height: 16px;
+}
+
+/* ---- ADD MEMBER MODAL / DROPDOWN ---- */
+.add-member-form {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.add-member-form select {
+    font-size: 12px;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.add-member-form button {
+    padding: 4px 10px;
+    font-size: 12px;
+    background: #4a90e2;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
 }

@@ -226,4 +226,35 @@ class GroupModel
 
         return $query->rowCount() === 1;
     }
+
+    /** Returns active users NOT yet in the given group. */
+    public static function getNonMembersForGroup($chat_id)
+    {
+        $database = DatabaseFactory::getFactory()->getConnection();
+        $sql = "SELECT u.user_id, u.user_name
+                FROM users u
+                WHERE u.user_active = 1
+                  AND u.user_id NOT IN (
+                      SELECT cp.user_id FROM chat_participants cp WHERE cp.chat_id = :chat_id
+                  )
+                ORDER BY u.user_name ASC";
+        $query = $database->prepare($sql);
+        $query->execute([':chat_id' => $chat_id]);
+        return $query->fetchAll();
+    }
+
+    /** Adds a specific user to a group chat (any member may invite). */
+    public static function addMemberToGroup($chat_id, $user_id)
+    {
+        $database = DatabaseFactory::getFactory()->getConnection();
+        $sql = "SELECT 1 FROM chats WHERE chat_id = :chat_id AND chat_type = 'GROUP' LIMIT 1";
+        $query = $database->prepare($sql);
+        $query->execute([':chat_id' => $chat_id]);
+        if (!$query->fetch()) { return false; }
+        if (self::isUserInChat($user_id, $chat_id)) { return false; }
+        $sql = "INSERT INTO chat_participants (chat_id, user_id) VALUES (:chat_id, :user_id)";
+        $query = $database->prepare($sql);
+        $query->execute([':chat_id' => $chat_id, ':user_id' => $user_id]);
+        return $query->rowCount() === 1;
+    }
 }

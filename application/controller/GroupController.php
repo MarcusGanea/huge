@@ -81,7 +81,7 @@ class GroupController extends Controller
      */
     public function chat($chat_id)
     {
-        $chat_id        = (int) $chat_id;
+        $chat_id         = (int) $chat_id;
         $current_user_id = (int) Session::get('user_id');
 
         if (!GroupModel::isUserInChat($current_user_id, $chat_id)) {
@@ -97,13 +97,11 @@ class GroupController extends Controller
             return;
         }
 
-        // Reuse the shared markChatAsRead from MessengerModel
         MessengerModel::markChatAsRead($chat_id, $current_user_id);
 
         $this->View->render('group/chat', [
             'my_groups'      => GroupModel::getMyGroupChats(),
-            'dm_chats'       => MessengerModel::getMyChats(),
-            // Reuse the shared getMessagesByChatId from MessengerModel
+            'non_members'    => GroupModel::getNonMembersForGroup($chat_id),
             'messages'       => MessengerModel::getMessagesByChatId($chat_id, $current_user_id),
             'active_chat_id' => $chat_id,
             'group'          => $group
@@ -123,6 +121,29 @@ class GroupController extends Controller
             $chat_id,
             $content
         );
+
+        Redirect::to('group/chat/' . $chat_id);
+    }
+
+    /**
+     * Add a member to a group chat (POST).
+     */
+    public function doAddMember()
+    {
+        $chat_id = (int) Request::post('chat_id');
+        $user_id = (int) Request::post('user_id');
+
+        if (!GroupModel::isUserInChat((int) Session::get('user_id'), $chat_id)) {
+            Session::add('feedback_negative', 'Keine Berechtigung.');
+            Redirect::to('group/index');
+            return;
+        }
+
+        if ($user_id && GroupModel::addMemberToGroup($chat_id, $user_id)) {
+            Session::add('feedback_positive', 'Mitglied wurde hinzugefügt.');
+        } else {
+            Session::add('feedback_negative', 'Mitglied konnte nicht hinzugefügt werden.');
+        }
 
         Redirect::to('group/chat/' . $chat_id);
     }

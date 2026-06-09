@@ -7,36 +7,13 @@ class MessengerModel{
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT DISTINCT
-                    c.chat_id,
-                    c.chat_name,
-                    u.user_id AS partner_id,
-                    u.user_name AS partner_name,
-                    u.user_email AS partner_email,
-                    u.user_has_avatar,
-                    (
-                        SELECT COUNT(*)
-                        FROM messages m2
-                        WHERE m2.chat_id = c.chat_id
-                          AND m2.sender_id != :current_user_id
-                          AND m2.is_read = 0
-                    ) AS unread_count
-                FROM chats c
-                INNER JOIN chat_participants cp_me
-                    ON c.chat_id = cp_me.chat_id
-                INNER JOIN chat_participants cp_other
-                    ON c.chat_id = cp_other.chat_id
-                INNER JOIN users u
-                    ON cp_other.user_id = u.user_id
-                WHERE cp_me.user_id = :current_user_id
-                  AND cp_other.user_id != :current_user_id
-                  AND c.chat_type = 'DM'
-                ORDER BY c.chat_id DESC";
+        $sql = "CALL sp_messenger_get_my_chats(:current_user_id)";
 
         $query = $database->prepare($sql);
         $query->execute(array(':current_user_id' => Session::get('user_id')));
 
         $chats = $query->fetchAll();
+        $query->closeCursor();
 
         foreach ($chats as $chat) {
             array_walk_recursive($chat, 'Filter::XSSFilter');
@@ -60,6 +37,7 @@ class MessengerModel{
         $query->execute(array(':current_user_id' => Session::get('user_id')));
 
         $users = $query->fetchAll();
+        $query->closeCursor();
 
         foreach ($users as $user) {
             array_walk_recursive($user, 'Filter::XSSFilter');
@@ -83,6 +61,7 @@ class MessengerModel{
         $query->execute(array(':partner_id' => $partner_id));
 
         $user = $query->fetch();
+        $query->closeCursor();
 
         if ($user) {
             array_walk_recursive($user, 'Filter::XSSFilter');
@@ -95,18 +74,7 @@ class MessengerModel{
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT cp1.chat_id
-                FROM chat_participants cp1
-                INNER JOIN chat_participants cp2
-                    ON cp1.chat_id = cp2.chat_id
-                WHERE cp1.user_id = :user_id
-                  AND cp2.user_id = :partner_id
-                  AND (
-                      SELECT COUNT(*)
-                      FROM chat_participants cp3
-                      WHERE cp3.chat_id = cp1.chat_id
-                  ) = 2
-                LIMIT 1";
+        $sql = "CALL sp_messenger_get_direct_chat_id_by_users(:user_id, :partner_id)";
 
         $query = $database->prepare($sql);
         $query->execute(array(
@@ -115,6 +83,7 @@ class MessengerModel{
         ));
 
         $result = $query->fetch();
+        $query->closeCursor();
 
         return $result ? $result->chat_id : null;
     }
@@ -123,20 +92,17 @@ class MessengerModel{
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $chat_name = 'DM_' . min($user_id, $partner_id) . '_' . max($user_id, $partner_id);
-
-        $sql = "INSERT INTO chats (chat_name, chat_type) VALUES (:chat_name, 'DM')";
+        $sql = "CALL sp_messenger_create_direct_chat(:user_id, :partner_id)";
         $query = $database->prepare($sql);
-        $query->execute(array(':chat_name' => $chat_name));
+        $query->execute(array(
+            ':user_id' => $user_id,
+            ':partner_id' => $partner_id
+        ));
 
-        $chat_id = $database->lastInsertId();
+        $result = $query->fetch();
+        $query->closeCursor();
 
-        $sql = "INSERT INTO chat_participants (chat_id, user_id) VALUES (:chat_id, :user_id)";
-        $query = $database->prepare($sql);
-        $query->execute(array(':chat_id' => $chat_id, ':user_id' => $user_id));
-        $query->execute(array(':chat_id' => $chat_id, ':user_id' => $partner_id));
-
-        return $chat_id;
+        return $result ? (int) $result->chat_id : null;
     }
 
     public static function getOrCreateDirectChat($user_id, $partner_id)
@@ -145,13 +111,19 @@ class MessengerModel{
             return null;
         }
 
-        $chat_id = self::getDirectChatIdByUsers($user_id, $partner_id);
+        $database = DatabaseFactory::getFactory()->getConnection();
 
-        if ($chat_id !== null) {
-                return $chat_id;
-            }
+        $sql = "CALL sp_messenger_get_or_create_direct_chat(:user_id, :partner_id)";
+        $query = $database->prepare($sql);
+        $query->execute(array(
+            ':user_id' => $user_id,
+            ':partner_id' => $partner_id
+        ));
 
-        return self::createDirectChat($user_id, $partner_id);
+        $result = $query->fetch();
+        $query->closeCursor();
+
+        return $result ? (int) $result->chat_id : null;
     }
 
     public static function getMessagesByChatId($chat_id, $current_user_id)
@@ -167,6 +139,7 @@ class MessengerModel{
         ));
 
         $messages = $query->fetchAll();
+        $query->closeCursor();
 
         foreach ($messages as $message) {
             array_walk_recursive($message, 'Filter::XSSFilter');
@@ -198,7 +171,10 @@ class MessengerModel{
             ':content' => $content
         ));
 
-        return $query->rowCount() === 1;
+        $result = $query->fetch();
+        $query->closeCursor();
+
+        return $result && (int) $result->affected_rows === 1;
     }
 
     public static function markChatAsRead($chat_id, $current_user_id)
@@ -212,6 +188,8 @@ class MessengerModel{
             ':chat_id' => $chat_id,
             ':current_user_id' => $current_user_id
         ));
+
+        $query->closeCursor();
     }
 
     public static function countUnreadMessages($current_user_id)
@@ -224,6 +202,7 @@ class MessengerModel{
         $query->execute(array(':current_user_id' => $current_user_id));
 
         $result = $query->fetch();
+        $query->closeCursor();
 
         return $result ? (int) $result->unread_total : 0;
     }

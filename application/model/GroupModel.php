@@ -22,17 +22,17 @@ class GroupModel
 
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "INSERT INTO chats (chat_name, chat_type) VALUES (:chat_name, 'GROUP')";
+        $sql = "CALL sp_group_create_group_chat(:creator_id, :group_name)";
         $query = $database->prepare($sql);
-        $query->execute([':chat_name' => $group_name]);
+        $query->execute([
+            ':creator_id' => $creator_id,
+            ':group_name' => $group_name
+        ]);
 
-        $chat_id = $database->lastInsertId();
+        $result = $query->fetch();
+        $query->closeCursor();
 
-        $sql = "INSERT INTO chat_participants (chat_id, user_id) VALUES (:chat_id, :user_id)";
-        $query = $database->prepare($sql);
-        $query->execute([':chat_id' => $chat_id, ':user_id' => $creator_id]);
-
-        return (int) $chat_id;
+        return $result ? (int) $result->chat_id : false;
     }
 
     /**
@@ -44,26 +44,19 @@ class GroupModel
      */
     public static function joinGroupChat($user_id, $chat_id)
     {
-        if (self::isUserInChat($user_id, $chat_id)) {
-            return false;
-        }
-
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        // Security: verify it's actually a GROUP chat
-        $sql = "SELECT chat_id FROM chats WHERE chat_id = :chat_id AND chat_type = 'GROUP' LIMIT 1";
+        $sql = "CALL sp_group_join_group_chat(:user_id, :chat_id)";
         $query = $database->prepare($sql);
-        $query->execute([':chat_id' => $chat_id]);
+        $query->execute([
+            ':user_id' => $user_id,
+            ':chat_id' => $chat_id
+        ]);
 
-        if (!$query->fetch()) {
-            return false;
-        }
+        $result = $query->fetch();
+        $query->closeCursor();
 
-        $sql = "INSERT INTO chat_participants (chat_id, user_id) VALUES (:chat_id, :user_id)";
-        $query = $database->prepare($sql);
-        $query->execute([':chat_id' => $chat_id, ':user_id' => $user_id]);
-
-        return $query->rowCount() === 1;
+        return $result && (int) $result->affected_rows === 1;
     }
 
     /**
@@ -77,13 +70,14 @@ class GroupModel
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT 1 FROM chat_participants
-                WHERE user_id = :user_id AND chat_id = :chat_id
-                LIMIT 1";
+        $sql = "CALL sp_group_is_user_in_chat(:user_id, :chat_id)";
         $query = $database->prepare($sql);
         $query->execute([':user_id' => $user_id, ':chat_id' => $chat_id]);
 
-        return (bool) $query->fetch();
+        $result = $query->fetch();
+        $query->closeCursor();
+
+        return (bool) $result;
     }
 
     /**
@@ -96,31 +90,13 @@ class GroupModel
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT
-                    c.chat_id,
-                    c.chat_name,
-                    (
-                        SELECT COUNT(*)
-                        FROM chat_participants cp2
-                        WHERE cp2.chat_id = c.chat_id
-                    ) AS member_count,
-                    (
-                        SELECT COUNT(*)
-                        FROM messages m2
-                        WHERE m2.chat_id = c.chat_id
-                          AND m2.sender_id != :current_user_id
-                          AND m2.is_read = 0
-                    ) AS unread_count
-                FROM chats c
-                INNER JOIN chat_participants cp ON c.chat_id = cp.chat_id
-                WHERE cp.user_id = :current_user_id
-                  AND c.chat_type = 'GROUP'
-                ORDER BY c.chat_id DESC";
+                $sql = "CALL sp_group_get_my_group_chats(:current_user_id)";
 
         $query = $database->prepare($sql);
         $query->execute([':current_user_id' => Session::get('user_id')]);
 
         $chats = $query->fetchAll();
+                $query->closeCursor();
 
         foreach ($chats as $chat) {
             array_walk_recursive($chat, 'Filter::XSSFilter');
@@ -138,27 +114,13 @@ class GroupModel
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT
-                    c.chat_id,
-                    c.chat_name,
-                    (
-                        SELECT COUNT(*)
-                        FROM chat_participants cp2
-                        WHERE cp2.chat_id = c.chat_id
-                    ) AS member_count
-                FROM chats c
-                WHERE c.chat_type = 'GROUP'
-                  AND NOT EXISTS (
-                      SELECT 1 FROM chat_participants cp
-                      WHERE cp.chat_id = c.chat_id
-                        AND cp.user_id = :current_user_id
-                  )
-                ORDER BY c.chat_name ASC";
+                $sql = "CALL sp_group_get_available_group_chats(:current_user_id)";
 
         $query = $database->prepare($sql);
         $query->execute([':current_user_id' => Session::get('user_id')]);
 
         $chats = $query->fetchAll();
+                $query->closeCursor();
 
         foreach ($chats as $chat) {
             array_walk_recursive($chat, 'Filter::XSSFilter');
@@ -177,14 +139,12 @@ class GroupModel
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT chat_id, chat_name
-                FROM chats
-                WHERE chat_id = :chat_id AND chat_type = 'GROUP'
-                LIMIT 1";
+        $sql = "CALL sp_group_get_group_chat_data(:chat_id)";
         $query = $database->prepare($sql);
         $query->execute([':chat_id' => $chat_id]);
 
         $chat = $query->fetch();
+        $query->closeCursor();
 
         if ($chat) {
             array_walk_recursive($chat, 'Filter::XSSFilter');
@@ -208,53 +168,49 @@ class GroupModel
             return false;
         }
 
-        // Authorisation: sender must be a participant
-        if (!self::isUserInChat($sender_id, $chat_id)) {
-            return false;
-        }
-
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "INSERT INTO messages (chat_id, sender_id, content, is_read)
-                VALUES (:chat_id, :sender_id, :content, 0)";
+        $sql = "CALL sp_group_send_message(:sender_id, :chat_id, :content)";
         $query = $database->prepare($sql);
         $query->execute([
-            ':chat_id'   => $chat_id,
             ':sender_id' => $sender_id,
+            ':chat_id'   => $chat_id,
             ':content'   => $content
         ]);
 
-        return $query->rowCount() === 1;
+        $result = $query->fetch();
+        $query->closeCursor();
+
+        return $result && (int) $result->affected_rows === 1;
     }
 
     /** Returns active users NOT yet in the given group. */
     public static function getNonMembersForGroup($chat_id)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
-        $sql = "SELECT u.user_id, u.user_name
-                FROM users u
-                WHERE u.user_active = 1
-                  AND u.user_id NOT IN (
-                      SELECT cp.user_id FROM chat_participants cp WHERE cp.chat_id = :chat_id
-                  )
-                ORDER BY u.user_name ASC";
+        $sql = "CALL sp_group_get_non_members_for_group(:chat_id)";
         $query = $database->prepare($sql);
         $query->execute([':chat_id' => $chat_id]);
-        return $query->fetchAll();
+        $result = $query->fetchAll();
+        $query->closeCursor();
+        return $result;
     }
 
     /** Adds a specific user to a group chat (any member may invite). */
     public static function addMemberToGroup($chat_id, $user_id)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
-        $sql = "SELECT 1 FROM chats WHERE chat_id = :chat_id AND chat_type = 'GROUP' LIMIT 1";
+
+        $sql = "CALL sp_group_add_member(:chat_id, :user_id)";
         $query = $database->prepare($sql);
-        $query->execute([':chat_id' => $chat_id]);
-        if (!$query->fetch()) { return false; }
-        if (self::isUserInChat($user_id, $chat_id)) { return false; }
-        $sql = "INSERT INTO chat_participants (chat_id, user_id) VALUES (:chat_id, :user_id)";
-        $query = $database->prepare($sql);
-        $query->execute([':chat_id' => $chat_id, ':user_id' => $user_id]);
-        return $query->rowCount() === 1;
+        $query->execute([
+            ':chat_id' => $chat_id,
+            ':user_id' => $user_id
+        ]);
+
+        $result = $query->fetch();
+        $query->closeCursor();
+
+        return $result && (int) $result->affected_rows === 1;
     }
 }

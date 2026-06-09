@@ -54,12 +54,7 @@ class MessengerModel{
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT user_id, user_name, user_email, user_has_avatar
-                FROM users
-                WHERE user_id != :current_user_id
-                  AND user_deleted = 0
-                  AND user_active = 1
-                ORDER BY user_name ASC";
+        $sql = "CALL sp_messenger_get_available_users_for_new_chat(:current_user_id)";
 
         $query = $database->prepare($sql);
         $query->execute(array(':current_user_id' => Session::get('user_id')));
@@ -82,10 +77,7 @@ class MessengerModel{
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT user_id, user_name, user_email, user_has_avatar
-                FROM users
-                WHERE user_id = :partner_id
-                LIMIT 1";
+        $sql = "CALL sp_messenger_get_partner_data(:partner_id)";
 
         $query = $database->prepare($sql);
         $query->execute(array(':partner_id' => $partner_id));
@@ -166,24 +158,7 @@ class MessengerModel{
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT
-                    m.message_id,
-                    m.chat_id,
-                    m.sender_id,
-                    m.content,
-                    m.is_read,
-                    u.user_name AS sender_name
-                FROM messages m
-                INNER JOIN users u
-                    ON m.sender_id = u.user_id
-                WHERE m.chat_id = :chat_id
-                  AND EXISTS (
-                      SELECT 1
-                      FROM chat_participants cp
-                      WHERE cp.chat_id = m.chat_id
-                        AND cp.user_id = :current_user_id
-                  )
-                ORDER BY m.message_id ASC";
+        $sql = "CALL sp_messenger_get_messages_by_chat_id(:chat_id, :current_user_id)";
 
         $query = $database->prepare($sql);
         $query->execute(array(
@@ -214,8 +189,7 @@ class MessengerModel{
 
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "INSERT INTO messages (chat_id, sender_id, content, is_read)
-                VALUES (:chat_id, :sender_id, :content, 0)";
+        $sql = "CALL sp_messenger_insert_message(:chat_id, :sender_id, :content)";
 
         $query = $database->prepare($sql);
         $query->execute(array(
@@ -231,11 +205,7 @@ class MessengerModel{
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "UPDATE messages
-                SET is_read = 1
-                WHERE chat_id = :chat_id
-                  AND sender_id != :current_user_id
-                  AND is_read = 0";
+        $sql = "CALL sp_messenger_mark_chat_as_read(:chat_id, :current_user_id)";
 
         $query = $database->prepare($sql);
         $query->execute(array(
@@ -248,13 +218,7 @@ class MessengerModel{
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT COUNT(*) AS unread_total
-                FROM messages m
-                INNER JOIN chat_participants cp
-                    ON m.chat_id = cp.chat_id
-                WHERE cp.user_id = :current_user_id
-                  AND m.sender_id != :current_user_id
-                  AND m.is_read = 0";
+        $sql = "CALL sp_messenger_count_unread(:current_user_id)";
 
         $query = $database->prepare($sql);
         $query->execute(array(':current_user_id' => $current_user_id));
@@ -270,7 +234,7 @@ class MessengerModel{
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
-        $sql = "SELECT chat_id, chat_name FROM chats";
+        $sql = "CALL sp_messenger_get_all_chats();";
         $query = $database->prepare($sql);
         $query->execute();
 
@@ -288,6 +252,7 @@ class MessengerModel{
             $all_chats[$chat->chat_id]->chat_name = $chat->chat_name;
             //$all_users_profiles[$user->user_id]->user_avatar_link = (Config::get('USE_GRAVATAR') ? AvatarModel::getGravatarLinkByEmail($user->user_email) : AvatarModel::getPublicAvatarFilePathOfUser($user->user_has_avatar, $user->user_id));
         }
+        $query->closeCursor();
 
         return $all_chats;
     }

@@ -5,6 +5,7 @@
  *
  * Everything registration-related happens here.
  */
+//-- Diese Klasse regelt den kompletten Registrierungsprozess: Eingaben prüfen, Nutzer anlegen und in der DB speichern.
 class RegistrationModel
 {
     /**
@@ -13,8 +14,10 @@ class RegistrationModel
      *
      * @return boolean Gives back the success status of the registration
      */
+    //-- Hauptfunktion für die Registrierung: Liest Formulardaten, validiert sie und legt den Nutzer an.
     public static function registerNewUser()
     {
+        //-- Formulareingaben einlesen und gefährliche HTML-Tags entfernen (strip_tags = Sicherheit).
         // clean the input
         $user_name = strip_tags(Request::post('user_name'));
         $user_email = strip_tags(Request::post('user_email'));
@@ -22,12 +25,15 @@ class RegistrationModel
         $user_password_new = Request::post('user_password_new');
         $user_password_repeat = Request::post('user_password_repeat');
 
+        //-- Alle Eingaben prüfen (Benutzername, E-Mail, Passwort).
+        //-- Falls eine Prüfung fehlschlägt, wird die Registrierung abgebrochen.
         // stop registration flow if registrationInputValidation() returns false (= anything breaks the input check rules)
         $validation_result = self::registrationInputValidation($user_name, $user_password_new, $user_password_repeat, $user_email, $user_email_repeat);
         if (!$validation_result) {
             return false;
         }
 
+        //-- Passwort sicher hashen – wird niemals im Klartext gespeichert.
         // crypt the password with the PHP 5.5's password_hash() function, results in a 60 character hash string.
         // @see php.net/manual/en/function.password-hash.php for more, especially for potential options
         $user_password_hash = password_hash($user_password_new, PASSWORD_DEFAULT);
@@ -35,30 +41,36 @@ class RegistrationModel
         // make return a bool variable, so both errors can come up at once if needed
         $return = true;
 
+        //-- Prüfen, ob der Benutzername schon vergeben ist.
         // check if username already exists
         if (UserModel::doesUsernameAlreadyExist($user_name)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_USERNAME_ALREADY_TAKEN'));
             $return = false;
         }
 
+        //-- Prüfen, ob die E-Mail-Adresse schon registriert ist.
         // check if email already exists
         if (UserModel::doesEmailAlreadyExist($user_email)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_USER_EMAIL_ALREADY_TAKEN'));
             $return = false;
         }
 
+        //-- Falls Benutzername oder E-Mail schon belegt, abbrechen.
         // if Username or Email were false, return false
         if (!$return) return false;
 
+        //-- Zufälligen 80-Zeichen-Hash für die E-Mail-Verifizierung erzeugen.
         // generate random hash for email verification (40 bytes)
         $user_activation_hash = bin2hex(random_bytes(40));
 
+        //-- Neuen Nutzer in die Datenbank schreiben.
         // write user data to database
         if (!self::writeNewUserToDatabase($user_name, $user_password_hash, $user_email, time(), $user_activation_hash)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_ACCOUNT_CREATION_FAILED'));
             return false; // no reason not to return false here
         }
 
+        //-- Die neue Nutzer-ID anhand des Benutzernamens ermitteln.
         // get user_id of the user that has been created, to keep things clean we DON'T use lastInsertId() here
         $user_id = UserModel::getUserIdByUsername($user_name);
 
@@ -93,6 +105,8 @@ class RegistrationModel
      *
      * @return bool
      */
+    //-- Prüft alle Registrierungseingaben auf Gültigkeit (Benutzername, E-Mail, Passwort).
+    //-- Gibt true zurück, wenn alles korrekt ist.
     public static function registrationInputValidation($user_name, $user_password_new, $user_password_repeat, $user_email, $user_email_repeat)
     {
         $return = true;
@@ -118,13 +132,16 @@ class RegistrationModel
      * @param $user_name
      * @return bool
      */
+    //-- Prüft, ob der Benutzername gültig ist: nicht leer, 2-64 Zeichen, nur Buchstaben und Ziffern.
     public static function validateUserName($user_name)
     {
+        //-- Benutzername muss eingegeben worden sein.
         if (empty($user_name)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_USERNAME_FIELD_EMPTY'));
             return false;
         }
 
+        //-- Benutzername: 2 bis 64 Zeichen, nur a-z, A-Z, 0-9.
         // if username is too short (2), too long (64) or does not fit the pattern (aZ09)
         if (!preg_match('/^[a-zA-Z0-9]{2,64}$/', $user_name)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_USERNAME_DOES_NOT_FIT_PATTERN'));
@@ -141,6 +158,7 @@ class RegistrationModel
      * @param $user_email_repeat
      * @return bool
      */
+    //-- Prüft, ob die E-Mail-Adresse gültig ist: nicht leer, Wiederholung stimmt überein, gültiges Format.
     public static function validateUserEmail($user_email, $user_email_repeat)
     {
         if (empty($user_email)) {
@@ -148,11 +166,13 @@ class RegistrationModel
             return false;
         }
 
+        //-- Beide E-Mail-Felder müssen übereinstimmen (Tippfehler vermeiden).
         if ($user_email !== $user_email_repeat) {
             Session::add('feedback_negative', Text::get('FEEDBACK_EMAIL_REPEAT_WRONG'));
             return false;
         }
 
+        //-- PHP-interne Prüfung auf gültiges E-Mail-Format.
         // validate the email with PHP's internal filter
         // side-fact: Max length seems to be 254 chars
         // @see http://stackoverflow.com/questions/386294/what-is-the-maximum-length-of-a-valid-email-address
@@ -171,6 +191,7 @@ class RegistrationModel
      * @param $user_password_repeat
      * @return bool
      */
+    //-- Prüft das Passwort: nicht leer, Wiederholung stimmt überein, mindestens 6 Zeichen.
     public static function validateUserPassword($user_password_new, $user_password_repeat)
     {
         if (empty($user_password_new) OR empty($user_password_repeat)) {
@@ -202,10 +223,12 @@ class RegistrationModel
      *
      * @return bool
      */
+    //-- Schreibt alle Daten des neuen Nutzers in die Datenbank (Benutzername, Passwort-Hash, E-Mail usw.).
     public static function writeNewUserToDatabase($user_name, $user_password_hash, $user_email, $user_creation_timestamp, $user_activation_hash)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
+        //-- SQL INSERT: neuen Nutzer einfügen. user_active = 1 bedeutet: Konto sofort aktiv.
         // write new users data into database
         $sql = "INSERT INTO users (user_name, user_password_hash, user_email, user_creation_timestamp, user_activation_hash, user_provider_type, user_active)
                     VALUES (:user_name, :user_password_hash, :user_email, :user_creation_timestamp, :user_activation_hash, :user_provider_type, :user_active)";
@@ -232,6 +255,8 @@ class RegistrationModel
      *
      * @param $user_id
      */
+    //-- Rückgängig machen einer fehlgeschlagenen Registrierung: Nutzer wird wieder aus der DB gelöscht.
+    //-- Wird benutzt, wenn z.B. der Versand der Bestätigungsmail fehlschlägt.
     public static function rollbackRegistrationByUserId($user_id)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
@@ -277,6 +302,8 @@ class RegistrationModel
      *
      * @return bool success status
      */
+    //-- Aktiviert ein Nutzerkonto: Bestätigungscode aus der E-Mail wird mit dem in der DB gespeicherten verglichen.
+    //-- Bei Übereinstimmung wird das Konto auf "aktiv" gesetzt.
     public static function verifyNewUser($user_id, $user_activation_verification_code)
     {
         $database = DatabaseFactory::getFactory()->getConnection();

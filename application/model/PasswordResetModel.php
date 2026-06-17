@@ -5,6 +5,10 @@
  *
  * Handles all the stuff that is related to the password-reset process
  */
+//-- Diese Klasse steuert den Passwort-Zurücksetzen-Prozess:
+//-- 1. Nutzer beantragt ein neues Passwort (per E-Mail).
+//-- 2. Ein Link mit Sicherheitscode wird per E-Mail geschickt.
+//-- 3. Der Nutzer klickt den Link und gibt ein neues Passwort ein.
 class PasswordResetModel
 {
     /**
@@ -15,18 +19,22 @@ class PasswordResetModel
      *
      * @return bool success status
      */
+    //-- Startet den Passwort-Reset-Prozess: CAPTCHA prüfen, Nutzer suchen, Token erstellen und E-Mail senden.
     public static function requestPasswordReset($user_name_or_email, $captcha)
     {
+        //-- Zuerst prüfen, ob das CAPTCHA richtig eingegeben wurde.
         if (!CaptchaModel::checkCaptcha($captcha)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_CAPTCHA_WRONG'));
             return false;
         }
 
+        //-- Benutzername oder E-Mail-Adresse darf nicht leer sein.
         if (empty($user_name_or_email)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_USERNAME_EMAIL_FIELD_EMPTY'));
             return false;
         }
 
+        //-- Prüfen, ob der Nutzer in der Datenbank existiert.
         // check if that username exists
         $result = UserModel::getUserDataByUserNameOrEmail($user_name_or_email);
         if (!$result) {
@@ -34,17 +42,20 @@ class PasswordResetModel
             return false;
         }
 
+        //-- Aktuellen Zeitstempel und einen zufälligen 80-Zeichen-Sicherheitscode erzeugen.
         // generate integer-timestamp (to see when exactly the user (or an attacker) requested the password reset mail)
         // generate random hash for email password reset verification (40 bytes)
         $temporary_timestamp = time();
         $user_password_reset_hash = bin2hex(random_bytes(40));
 
+        //-- Token und Zeitstempel in der Datenbank speichern.
         // set token (= a random hash string and a timestamp) into database ...
         $token_set = self::setPasswordResetDatabaseToken($result->user_name, $user_password_reset_hash, $temporary_timestamp);
         if (!$token_set) {
             return false;
         }
 
+        //-- E-Mail mit Reset-Link an den Nutzer senden.
         // ... and send a mail to the user, containing a link with username and token hash string
         $mail_sent = self::sendPasswordResetMail($result->user_name, $user_password_reset_hash, $result->user_email);
         if ($mail_sent) {
@@ -64,10 +75,12 @@ class PasswordResetModel
      *
      * @return bool success status
      */
+    //-- Speichert den Sicherheitscode und den Zeitstempel des Passwort-Reset-Antrags in der Datenbank.
     public static function setPasswordResetDatabaseToken($user_name, $user_password_reset_hash, $temporary_timestamp)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
+        //-- Speichert den Reset-Hash und den Zeitpunkt der Anfrage für diesen Nutzer.
         $sql = "UPDATE users
                 SET user_password_reset_hash = :user_password_reset_hash, user_password_reset_timestamp = :user_password_reset_timestamp
                 WHERE user_name = :user_name AND user_provider_type = :provider_type LIMIT 1";
@@ -77,6 +90,7 @@ class PasswordResetModel
             ':user_password_reset_timestamp' => $temporary_timestamp, ':provider_type' => 'DEFAULT'
         ));
 
+        //-- Wenn genau 1 Zeile geändert wurde, war es erfolgreich.
         // check if exactly one row was successfully changed
         if ($query->rowCount() == 1) {
             return true;
@@ -96,12 +110,15 @@ class PasswordResetModel
      *
      * @return bool success status
      */
+    //-- Sendet die Passwort-Reset-E-Mail mit einem Link, der Benutzername und Sicherheitscode enthält.
     public static function sendPasswordResetMail($user_name, $user_password_reset_hash, $user_email)
     {
+        //-- E-Mail-Text zusammenbauen: fester Text + Reset-URL + Benutzername + Sicherheitscode.
         // create email body
         $body = Config::get('EMAIL_PASSWORD_RESET_CONTENT') . ' ' . Config::get('URL') .
                 Config::get('EMAIL_PASSWORD_RESET_URL') . '/' . urlencode($user_name) . '/' . urlencode($user_password_reset_hash);
 
+        //-- Mail-Objekt erstellen und E-Mail versenden.
         // create instance of Mail class, try sending and check
         $mail = new Mail;
         $mail_sent = $mail->sendMail($user_email, Config::get('EMAIL_PASSWORD_RESET_FROM_EMAIL'),
@@ -123,10 +140,12 @@ class PasswordResetModel
      * @param string $verification_code Hash token
      * @return bool Success status
      */
+    //-- Überprüft den Reset-Link: Stimmt der Sicherheitscode zum Nutzer? Ist der Link noch gültig (max. 1 Stunde)?
     public static function verifyPasswordReset($user_name, $verification_code)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
+        //-- Sucht in der DB nach der Kombination aus Benutzername und Sicherheitscode.
         // check if user-provided username + verification code combination exists
         $sql = "SELECT user_id, user_password_reset_timestamp
                   FROM users
@@ -140,18 +159,22 @@ class PasswordResetModel
             ':user_provider_type' => 'DEFAULT'
         ));
 
+        //-- Wenn kein passender Eintrag gefunden wurde, ist der Link ungültig.
         // if this user with exactly this verification hash code does NOT exist
         if ($query->rowCount() != 1) {
             Session::add('feedback_negative', Text::get('FEEDBACK_PASSWORD_RESET_COMBINATION_DOES_NOT_EXIST'));
             return false;
         }
 
+        //-- Ergebnis-Zeile als Objekt holen.
         // get result row (as an object)
         $result_user_row = $query->fetch();
 
+        //-- 3600 Sekunden = 1 Stunde. Der Link darf nicht älter als 1 Stunde sein.
         // 3600 seconds are 1 hour
         $timestamp_one_hour_ago = time() - 3600;
 
+        //-- War der Reset-Link innerhalb der letzten Stunde angefordert worden?
         // if password reset request was sent within the last hour (this timeout is for security reasons)
         if ($result_user_row->user_password_reset_timestamp > $timestamp_one_hour_ago) {
 
@@ -159,6 +182,7 @@ class PasswordResetModel
             Session::add('feedback_positive', Text::get('FEEDBACK_PASSWORD_RESET_LINK_VALID'));
             return true;
         } else {
+            //-- Link ist abgelaufen – Nutzer muss einen neuen anfordern.
             Session::add('feedback_negative', Text::get('FEEDBACK_PASSWORD_RESET_LINK_EXPIRED'));
             return false;
         }
@@ -173,10 +197,12 @@ class PasswordResetModel
      *
      * @return bool
      */
+    //-- Speichert das neue Passwort (als Hash) in der Datenbank und löscht gleichzeitig den Reset-Token.
     public static function saveNewUserPassword($user_name, $user_password_hash, $user_password_reset_hash)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
+        //-- Neues Passwort setzen, Reset-Felder leeren – Token kann danach nicht nochmal verwendet werden.
         $sql = "UPDATE users SET user_password_hash = :user_password_hash, user_password_reset_hash = NULL,
                        user_password_reset_timestamp = NULL
                  WHERE user_name = :user_name AND user_password_reset_hash = :user_password_reset_hash
@@ -187,6 +213,7 @@ class PasswordResetModel
             ':user_password_reset_hash' => $user_password_reset_hash, ':user_provider_type' => 'DEFAULT'
         ));
 
+        //-- Wenn genau 1 Zeile geändert wurde → Erfolg, sonst Fehler.
         // if one result exists, return true, else false. Could be written even shorter btw.
         return ($query->rowCount() == 1 ? true : false);
     }
@@ -204,16 +231,22 @@ class PasswordResetModel
      *
      * @return bool success state of the password reset
      */
+    //-- Koordiniert das Setzen eines neuen Passworts nach dem Klick auf den Reset-Link:
+    //-- Eingaben validieren, Passwort hashen und in der DB speichern.
     public static function setNewPassword($user_name, $user_password_reset_hash, $user_password_new, $user_password_repeat)
     {
+        //-- Eingaben validieren (nicht leer, gleiche Wiederholung, mind. 6 Zeichen).
         // validate the password
         if (!self::validateResetPassword($user_name, $user_password_reset_hash, $user_password_new, $user_password_repeat)) {
             return false;
         }
 
+        //-- Passwort mit PHP's sicherem password_hash() verschlüsseln (ergibt einen 60-Zeichen-Hash).
+        //-- Das Passwort wird niemals im Klartext gespeichert!
         // crypt the password (with the PHP 5.5+'s password_hash() function, result is a 60 character hash string)
         $user_password_hash = password_hash($user_password_new, PASSWORD_DEFAULT);
 
+        //-- Neues Passwort in der Datenbank speichern.
         // write the password to database (as hashed and salted string), reset user_password_reset_hash
         if (self::saveNewUserPassword($user_name, $user_password_hash, $user_password_reset_hash)) {
             Session::add('feedback_positive', Text::get('FEEDBACK_PASSWORD_CHANGE_SUCCESSFUL'));
@@ -234,6 +267,7 @@ class PasswordResetModel
      *
      * @return bool
      */
+    //-- Prüft alle Pflichtfelder für das Passwort-Reset-Formular: nicht leer, übereinstimmend, mind. 6 Zeichen.
     public static function validateResetPassword($user_name, $user_password_reset_hash, $user_password_new, $user_password_repeat)
     {
         if (empty($user_name)) {
@@ -265,10 +299,12 @@ class PasswordResetModel
      *
      * @return bool
      */
+    //-- Speichert ein geändertes Passwort in der Datenbank (für eingeloggte Nutzer, die ihr Passwort ändern).
     public static function saveChangedPassword($user_name, $user_password_hash)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
+        //-- Neuen Passwort-Hash in der Datenbank ablegen.
         $sql = "UPDATE users SET user_password_hash = :user_password_hash
                  WHERE user_name = :user_name
                  AND user_provider_type = :user_provider_type LIMIT 1";
@@ -293,16 +329,20 @@ class PasswordResetModel
      *
      * @return bool
      */
+    //-- Passwortänderung für eingeloggte Nutzer: validieren, hashen und speichern.
     public static function changePassword($user_name, $user_password_current, $user_password_new, $user_password_repeat)
     {
+        //-- Altes Passwort, neues Passwort und Wiederholung validieren.
         // validate the passwords
         if (!self::validatePasswordChange($user_name, $user_password_current, $user_password_new, $user_password_repeat)) {
             return false;
         }
 
+        //-- Neues Passwort sicher hashen.
         // crypt the password (with the PHP 5.5+'s password_hash() function, result is a 60 character hash string)
         $user_password_hash = password_hash($user_password_new, PASSWORD_DEFAULT);
 
+        //-- Neues Passwort in der Datenbank speichern.
         // write the password to database (as hashed and salted string)
         if (self::saveChangedPassword($user_name, $user_password_hash)) {
             Session::add('feedback_positive', Text::get('FEEDBACK_PASSWORD_CHANGE_SUCCESSFUL'));
@@ -324,10 +364,12 @@ class PasswordResetModel
      *
      * @return bool
      */
+    //-- Prüft, ob die Passwortänderung gültig ist: altes Passwort korrekt, neues nicht leer, nicht gleich dem alten usw.
     public static function validatePasswordChange($user_name, $user_password_current, $user_password_new, $user_password_repeat)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
 
+        //-- Alten Passwort-Hash aus der Datenbank laden.
         $sql = "SELECT user_password_hash, user_failed_logins FROM users WHERE user_name = :user_name LIMIT 1;";
         $query = $database->prepare($sql);
         $query->execute(array(
@@ -343,6 +385,7 @@ class PasswordResetModel
             return false;
         }
 
+        //-- Eingegebenes altes Passwort gegen den gespeicherten Hash prüfen.
         if (!password_verify($user_password_current, $user_password_hash)) {
             Session::add('feedback_negative', Text::get('FEEDBACK_PASSWORD_CURRENT_INCORRECT'));
             return false;
@@ -356,6 +399,7 @@ class PasswordResetModel
             Session::add('feedback_negative', Text::get('FEEDBACK_PASSWORD_TOO_SHORT'));
             return false;
         } else if ($user_password_current == $user_password_new){
+            //-- Neues Passwort darf nicht dasselbe wie das alte sein.
             Session::add('feedback_negative', Text::get('FEEDBACK_PASSWORD_NEW_SAME_AS_CURRENT'));
             return false;
         }

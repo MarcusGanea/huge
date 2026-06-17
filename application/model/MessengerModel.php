@@ -1,8 +1,12 @@
 <?php
 
+//-- Diese Klasse steuert den privaten Direkt-Messenger zwischen zwei Nutzern.
+//-- Sie lade Chats, sendet Nachrichten, erstellt neue Chats und markiert Nachrichten als gelesen.
 class MessengerModel{
 
 
+    //-- Gibt alle bestehenden Direkt-Chats des eingeloggten Nutzers zurück.
+    //-- Inklusive Profilbild und E-Mail des Gesprächspartners.
     public static function getMyChats()
     {
         $database = DatabaseFactory::getFactory()->getConnection();
@@ -15,8 +19,10 @@ class MessengerModel{
         $chats = $query->fetchAll();
         $query->closeCursor();
 
+        //-- XSS-Schutz: Schadcode aus Chat-Daten entfernen. Dann Avatar-Links berechnen.
         foreach ($chats as $chat) {
             array_walk_recursive($chat, 'Filter::XSSFilter');
+            //-- Je nach Einstellung: Gravatar-Bild oder lokal gespeichertes Profilbild verwenden.
             $chat->partner_avatar_link = (
                 Config::get('USE_GRAVATAR')
                     ? AvatarModel::getGravatarLinkByEmail($chat->partner_email)
@@ -27,6 +33,8 @@ class MessengerModel{
         return $chats;
     }
 
+    //-- Gibt alle Nutzer zurück, mit denen der eingeloggte Nutzer noch keinen Direkt-Chat hat.
+    //-- Diese können für einen neuen Chat ausgewählt werden.
     public static function getAvailableUsersForNewChat()
     {
         $database = DatabaseFactory::getFactory()->getConnection();
@@ -51,6 +59,7 @@ class MessengerModel{
         return $users;
     }
 
+    //-- Lädt die öffentlichen Daten eines Chatpartners (Name, Avatar usw.).
     public static function getPartnerData($partner_id)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
@@ -70,6 +79,8 @@ class MessengerModel{
         return $user;
     }
 
+    //-- Sucht nach einer vorhandenen Direkt-Chat-ID zwischen zwei Nutzern.
+    //-- Gibt null zurück, wenn noch kein Chat existiert.
     public static function getDirectChatIdByUsers($user_id, $partner_id)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
@@ -88,6 +99,7 @@ class MessengerModel{
         return $result ? $result->chat_id : null;
     }
 
+    //-- Erstellt einen neuen Direkt-Chat zwischen zwei Nutzern in der Datenbank.
     public static function createDirectChat($user_id, $partner_id)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
@@ -105,8 +117,11 @@ class MessengerModel{
         return $result ? (int) $result->chat_id : null;
     }
 
+    //-- Gibt eine vorhandene Chat-ID zurück oder erstellt automatisch einen neuen Chat, falls noch keiner existiert.
+    //-- Verhindert, dass zwei Nutzer mehrere Chats miteinander haben.
     public static function getOrCreateDirectChat($user_id, $partner_id)
     {
+        //-- Kann keinen Chat mit sich selbst erstellen.
         if (!$partner_id || $user_id == $partner_id) {
             return null;
         }
@@ -126,6 +141,8 @@ class MessengerModel{
         return $result ? (int) $result->chat_id : null;
     }
 
+    //-- Lädt alle Nachrichten eines bestimmten Chats (sortiert nach Datum).
+    //-- Markiert dabei, welche Nachrichten der aktuelle Nutzer selbst geschrieben hat.
     public static function getMessagesByChatId($chat_id, $current_user_id)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
@@ -148,8 +165,11 @@ class MessengerModel{
         return $messages;
     }
 
+    //-- Sendet eine Nachricht an einen anderen Nutzer.
+    //-- Falls noch kein Chat existiert, wird automatisch einer erstellt.
     public static function sendMessageToPartner($sender_id, $partner_id, $content)
     {
+        //-- Sicherheitscheck: Empfänger und Inhalt müssen vorhanden sein, man kann sich nicht selbst schreiben.
         if (!$partner_id || !$content || $sender_id == $partner_id) {
             return false;
         }
@@ -177,6 +197,8 @@ class MessengerModel{
         return $result && (int) $result->affected_rows === 1;
     }
 
+    //-- Markiert alle Nachrichten eines Chats als gelesen für den aktuellen Nutzer.
+    //-- So verschwindet der Ungelesen-Zähler, wenn man den Chat öffnet.
     public static function markChatAsRead($chat_id, $current_user_id)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
@@ -192,6 +214,8 @@ class MessengerModel{
         $query->closeCursor();
     }
 
+    //-- Zählt alle ungelesenen Nachrichten des aktuellen Nutzers über alle Chats hinweg.
+    //-- Wird z.B. für den roten Badge-Zähler in der Navigation verwendet.
     public static function countUnreadMessages($current_user_id)
     {
         $database = DatabaseFactory::getFactory()->getConnection();
@@ -209,6 +233,8 @@ class MessengerModel{
 
 
 
+    //-- Gibt alle Chats (für Admin-Übersicht) mit Chat-ID und Chat-Name zurück.
+    //-- Schützt auch hier die Daten mit dem XSS-Filter.
     public static function getAllChats()
     {
         $database = DatabaseFactory::getFactory()->getConnection();

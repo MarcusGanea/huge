@@ -22,8 +22,10 @@
             <section class="gallery">
                 <?php foreach ($this->my_files as $file): ?>
                     <figure tabindex="1">
-                        <img src="<?= Config::get('URL') ?>gallery/serve/<?= $file->file_id ?>"
-                             alt="<?= htmlspecialchars($file->original_name) ?>">
+                        <a href="<?= Config::get('URL') ?>gallery/serve/<?= $file->file_id ?>" target="_blank" rel="noopener">
+                            <img src="<?= Config::get('URL') ?>gallery/serve/<?= $file->file_id ?>"
+                                 alt="<?= htmlspecialchars($file->original_name) ?>">
+                        </a>
                         <figcaption>
                             <strong><?= htmlspecialchars($file->original_name) ?></strong><br>
                             <small><?= round($file->file_size / 1024, 1) ?> KB &bull; Downloads: <?= $file->downloads ?></small>
@@ -51,8 +53,10 @@
             <section class="gallery">
                 <?php foreach ($this->shared_files as $file): ?>
                     <figure tabindex="1">
-                        <img src="<?= Config::get('URL') ?>gallery/serve/<?= $file->file_id ?>"
-                             alt="<?= htmlspecialchars($file->original_name) ?>">
+                        <a href="<?= Config::get('URL') ?>gallery/serve/<?= $file->file_id ?>" target="_blank" rel="noopener">
+                            <img src="<?= Config::get('URL') ?>gallery/serve/<?= $file->file_id ?>"
+                                 alt="<?= htmlspecialchars($file->original_name) ?>">
+                        </a>
                         <figcaption>
                             <strong><?= htmlspecialchars($file->original_name) ?></strong><br>
                             <small>Von: <?= htmlspecialchars($file->user_name) ?></small>

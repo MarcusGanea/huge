@@ -40,10 +40,11 @@ class MessengerController extends Controller
 
     public function chat($partner_id)
     {
+        // 1. Chat-ID holen (oder neuen Chat anlegen)
         $chat_id = MessengerModel::getOrCreateDirectChat(Session::get('user_id'), $partner_id);
-
+        // 2. Chat als gelesen markieren
         MessengerModel::markChatAsRead($chat_id, Session::get('user_id'));
-
+        // 3. View anzeigen und Daten mitgeben
         $this->View->render('messenger/chat', array(
             'chats' => MessengerModel::getMyChats(),
             'my_groups' => GroupModel::getMyGroupChats(),

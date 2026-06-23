@@ -1,4 +1,5 @@
-﻿<!doctype html>
+﻿<?php /** @var string $filename */ ?>
+<!doctype html>
 <html>
 <head>
     <title>HUGE</title>
@@ -44,7 +45,9 @@
                     </a>
                 </li>
                 <li <?php if (View::checkForActiveController($filename, "gallery")) { echo ' class="active" '; } ?> >
-                    <a href="<?php echo Config::get('URL'); ?>gallery/index">Gallery</a>
+                    <a href="<?php echo Config::get('URL'); ?>gallery/index">Gallery</a> <!-- Das Framework schnappt sich jetzt diese URL, 
+                    wirft den Weichensteller in der Application.php an und weiß: 
+                    "Ich muss jetzt den GalleryController laden und dort die Methode index() ausführen."-->
                 </li>
                 <li <?php if (View::checkForActiveController($filename, "video")) { echo ' class="active" '; } ?> >
                     <a href="<?= Config::get('URL') ?>video/index">Videos</a>

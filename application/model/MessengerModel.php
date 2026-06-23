@@ -22,11 +22,10 @@ class MessengerModel{
         //-- XSS-Schutz: Schadcode aus Chat-Daten entfernen. Dann Avatar-Links berechnen.
         foreach ($chats as $chat) {
             array_walk_recursive($chat, 'Filter::XSSFilter');
-            //-- Je nach Einstellung: Gravatar-Bild oder lokal gespeichertes Profilbild verwenden.
+            //-- lokal gespeichertes Profilbild verwenden.
             $chat->partner_avatar_link = (
-                Config::get('USE_GRAVATAR')
-                    ? AvatarModel::getGravatarLinkByEmail($chat->partner_email)
-                    : AvatarModel::getPublicAvatarFilePathOfUser($chat->user_has_avatar, $chat->partner_id)
+
+                     AvatarModel::getPublicAvatarFilePathOfUser($chat->user_has_avatar, $chat->partner_id)
             );
         }
 

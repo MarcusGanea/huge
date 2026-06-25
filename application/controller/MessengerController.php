@@ -18,8 +18,6 @@ class MessengerController extends Controller
     public function index()
     {
         $this->View->render('messenger/index', array(
-            //'users' => UserModel::getPublicProfilesOfAllUsers())
-            //'chats' => MessengerModel::getAllChats())
             'chats' => MessengerModel::getMyChats())
         );
     }

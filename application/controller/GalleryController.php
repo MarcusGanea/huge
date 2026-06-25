@@ -39,7 +39,7 @@ class GalleryController extends Controller
 
         if (!$file || ($file->user_id != Session::get('user_id') && !$file->shared)) {
             Redirect::to('error/index');
-            return;
+           return;
         }
 
         $path = GalleryModel::getFilePath($file->user_id, $file->stored_name);

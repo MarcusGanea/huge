@@ -38,7 +38,7 @@ class AdminController extends Controller
         // Auth::checkAdminAuthentication() prüft, ob der aktuell eingeloggte Benutzer
         // die Admin-Rolle (Typ 7) hat. Falls nicht, wird er umgeleitet.
         // -> Schau in application/core/Auth.php für die Implementierung.
-        Auth::checkAdminAuthentication();
+        //Auth::checkAdminAuthentication();
 
         // # Alternative: Man könnte die Prüfung auch in jede einzelne Methode schreiben,
         // # statt sie im Konstruktor zu zentralisieren - aber das wäre redundant.

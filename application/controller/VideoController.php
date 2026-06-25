@@ -33,7 +33,7 @@ public function __construct()
         Redirect::to('video/index');
     }
 
-    /** Liefert ein Bild aus (für <img src="">) */
+    /** Liefert ein Video aus und unterstützt Streaming (Vor-/Zurückspulen) */
     public function serve($file_id)
     {
         $file = VideoModel::getFileById((int)$file_id);
@@ -50,10 +50,39 @@ public function __construct()
             return;
         }
 
-        $mime = (new finfo(FILEINFO_MIME_TYPE))->file($path);
+        $size  = filesize($path);
+        $mime  = (new finfo(FILEINFO_MIME_TYPE))->file($path);
+        $start = 0;
+        $end   = $size - 1;
+
         header('Content-Type: ' . $mime);
-        header('Content-Length: ' . filesize($path));
-        readfile($path);
+        header('Accept-Ranges: bytes');
+
+        // Hat der Browser einen bestimmten Bereich angefragt (z.B. beim Vorspulen)?
+        // preg_match liest start/end sauber aus – ganz ohne PHP-Notices.
+        if (isset($_SERVER['HTTP_RANGE']) && preg_match('/bytes=(\d+)-(\d*)/', $_SERVER['HTTP_RANGE'], $m)) {
+            $start = (int) $m[1];
+            if ($m[2] !== '') {
+                $end = (int) $m[2];
+            }
+            header('HTTP/1.1 206 Partial Content');
+            header("Content-Range: bytes $start-$end/$size");
+        }
+
+        $length = $end - $start + 1;
+        header('Content-Length: ' . $length);
+
+        // Nur den angefragten Abschnitt häppchenweise senden (spart Arbeitsspeicher)
+        $stream = fopen($path, 'rb');
+        fseek($stream, $start);
+        $remaining = $length;
+        while ($remaining > 0 && !feof($stream)) {
+            $read = ($remaining > 8192) ? 8192 : $remaining;
+            echo fread($stream, $read);
+            $remaining -= $read;
+            flush();
+        }
+        fclose($stream);
         exit;
     }
 
@@ -103,6 +132,40 @@ public function __construct()
         Redirect::to('video/index');
     }
 
-   
+    /** Zeigt die Detailseite eines Videos (großer Player + Likes + Kommentare) */
+    public function watch($video_id)
+    {
+        $file = VideoModel::getFileById((int)$video_id);
+
+        // Zugriff nur auf eigene oder öffentliche Videos
+        if (!$file || ($file->user_id != Session::get('user_id') && !$file->shared)) {
+            Session::add('feedback_negative', 'Video nicht gefunden.');
+            Redirect::to('video/index');
+            return;
+        }
+
+        $this->View->render('video/watch', array(
+            'file'       => $file,
+            'like_count' => VideoModel::getLikeCount((int)$video_id),
+            'has_liked'  => VideoModel::userHasLiked((int)$video_id, Session::get('user_id')),
+            'comments'   => VideoModel::getComments((int)$video_id),
+        ));
+    }
+
+    /** Like hinzufügen oder entfernen (Toggle) */
+    public function like($video_id)
+    {
+        VideoModel::toggleLike((int)$video_id);
+        Redirect::to('video/watch/' . (int)$video_id);
+    }
+
+    /** Speichert einen Kommentar (POST) */
+    public function comment($video_id)
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            VideoModel::addComment((int)$video_id, Request::post('comment_text', true));
+        }
+        Redirect::to('video/watch/' . (int)$video_id);
+    }
 
 }

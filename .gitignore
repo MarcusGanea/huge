@@ -5,3 +5,5 @@
 /vendor/
 /userpictures/
 /uservideos/
+/application/config/config.development.php
+

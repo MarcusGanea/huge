@@ -110,13 +110,13 @@ class RegistrationModel
     public static function registrationInputValidation($user_name, $user_password_new, $user_password_repeat, $user_email, $user_email_repeat)
     {
         $return = true;
-        /* Alter Captcha Code
-        // perform all necessary checks
-        if (!CaptchaModel::checkCaptcha($captcha)) {
+
+        //-- Google reCAPTCHA prüfen ("Ich bin kein Roboter"). Schlägt sie fehl, wird abgebrochen.
+        if (!CaptchaModel::checkReCaptcha()) {
             Session::add('feedback_negative', Text::get('FEEDBACK_CAPTCHA_WRONG'));
             $return = false;
         }
-        */
+
         // if username, email and password are all correctly validated, but make sure they all run on first sumbit
         if (self::validateUserName($user_name) AND self::validateUserEmail($user_email, $user_email_repeat) AND self::validateUserPassword($user_password_new, $user_password_repeat) AND $return) {
             return true;

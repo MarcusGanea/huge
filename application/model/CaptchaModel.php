@@ -54,4 +54,45 @@ class CaptchaModel
 
         return false;
     }
+
+    /**
+     * Verifies the Google reCAPTCHA v2 ("I'm not a robot" checkbox) response.
+     * The browser sends the field "g-recaptcha-response" on submit. This value is verified
+     * server-side against Google's siteverify API using the secret key.
+     *
+     * @return bool true if the user successfully solved the reCAPTCHA
+     */
+    //-- Prüft die Google-reCAPTCHA-Antwort ("Ich bin kein Roboter") serverseitig bei Google nach.
+    //-- Der Browser schickt beim Absenden das Feld "g-recaptcha-response" mit.
+    public static function checkReCaptcha()
+    {
+        //-- Von Google mitgeschicktes Antwort-Token aus dem Formular auslesen.
+        $recaptcha_response = Request::post('g-recaptcha-response');
+
+        //-- Wenn kein Token da ist, wurde die Checkbox nicht angeklickt.
+        if (empty($recaptcha_response)) {
+            return false;
+        }
+
+        //-- Daten für die Prüfung an Google zusammenstellen (geheimer Schlüssel + Antwort + IP).
+        $data = array(
+            'secret'   => Config::get('RECAPTCHA_SECRET_KEY'),
+            'response' => $recaptcha_response,
+            'remoteip' => $_SERVER['REMOTE_ADDR']
+        );
+
+        //-- Anfrage per cURL an die Google-Prüf-URL senden.
+        $ch = curl_init('https://www.google.com/recaptcha/api/siteverify');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        //-- Antwort von Google ist JSON; bei Erfolg ist "success" true.
+        $result = json_decode($response, true);
+
+        return isset($result['success']) && $result['success'] === true;
+    }
 }

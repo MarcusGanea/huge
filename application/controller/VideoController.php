@@ -152,7 +152,7 @@ public function __construct()
         ));
     }
 
-    /** Like hinzufügen oder entfernen (Toggle) */
+    /** Like hinzufügen oder entfernen (Toggle)*/
     public function like($video_id)
     {
         VideoModel::toggleLike((int)$video_id);

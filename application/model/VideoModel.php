@@ -3,7 +3,7 @@
     Class VideoModel{
 
         const ALLOWED_MIME = ['video/mp4', 'video/webm', 'video/ogg'];
-        const MAX_SIZE     = 524288000; // 500 MB
+        const MAX_SIZE     = 2147483648; // 2 GB
 
          //-- Gibt den absoluten Pfad zum Hauptordner aller Nutzerbilder zurück (z.B. /var/www/uservideos/).
     /** Absoluter Basispfad zum uservideos-Ordner */

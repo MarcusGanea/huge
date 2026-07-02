@@ -71,9 +71,9 @@
             return false;
         }
 
-        //-- Datei darf nicht größer als 5 MB sein.
+        //-- Datei darf nicht größer als 2 GB sein.
         if ($_FILES['video']['size'] > self::MAX_SIZE) {
-            Session::add('feedback_negative', 'Datei zu groß (max. 5 MB).');
+            Session::add('feedback_negative', 'Datei zu groß (max. 2 GB).');
             return false;
         }
 
